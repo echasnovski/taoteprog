@@ -1,0 +1,10 @@
+Package: taoteprog
+Version: 0.0.0.9000
+Title: Tao Te Programming Data
+Description: Data and analysis of "Tao Te Programming" book
+Authors@R: person("Evgeni", "Chasnovski", , "evgeni.chasnovski@gmail.com",
+    c("aut", "cre"))
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+ByteCompile: true
