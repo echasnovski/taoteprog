@@ -1,22 +1,22 @@
 library(tidygraph)
 
 # Chapters ----------------------------------------------------------------
-tot_chapters <- read.table(
-  file = file.path("data-raw", "tot_chapters.csv"),
+ttp_chapters <- read.table(
+  file = file.path("data-raw", "ttp_chapters.csv"),
   header = TRUE, sep = ";", quote = "",
   stringsAsFactors = FALSE
 ) %>%
   as_tibble()
 
-usethis::use_data(tot_chapters)
+usethis::use_data(ttp_chapters)
 
 
 # Edges -------------------------------------------------------------------
-tot_edges <- read.table(
-  file = file.path("data-raw", "tot_edges.csv"),
+ttp_edges <- read.table(
+  file = file.path("data-raw", "ttp_edges.csv"),
   header = TRUE, sep = ";", quote = "",
   stringsAsFactors = FALSE
 ) %>%
   as_tibble()
 
-usethis::use_data(tot_edges)
+usethis::use_data(ttp_edges)
