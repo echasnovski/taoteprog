@@ -1,5 +1,5 @@
 Package: taoteprog
-Version: 0.0.0.9000
+Version: 0.0.1
 Title: Tao Te Programming Data
 Description: Data and analysis of "Tao Te Programming" book by Patrick Burns.
 Authors@R: person("Evgeni", "Chasnovski", , "evgeni.chasnovski@gmail.com",
