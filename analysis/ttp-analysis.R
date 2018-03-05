@@ -14,13 +14,9 @@ ttp <- ttp_raw %>%
   # Remove loops
   activate(edges) %>%
   filter(!edge_is_loop()) %>%
-  # Create edge sign
-  mutate(sign = if_else(type == "ally", 1, -1)) %>%
   # Remove isolated nodes
   activate(nodes) %>%
-  filter(!node_is_isolated()) %>%
-  # Compute weak components
-  mutate(component = group_components())
+  filter(!node_is_isolated())
 ttp
 
 # Visualization
@@ -42,147 +38,8 @@ ttp %>%
       caption = "@echasnovski"
     )
 
-
-# Functions for partition -------------------------------------------------
-as_edge_vec <- function(adj_mat) {
-  c(as.matrix(adj_mat))
-}
-
-imb <- function(edge_vec, part_vec, alpha = 0.5) {
-  row_clus <- rep(part_vec, times = length(part_vec))
-  col_clus <- rep(part_vec, each = length(part_vec))
-
-  is_same_clus <- row_clus == col_clus
-  edges_within <- edge_vec[is_same_clus]
-  edges_between <- edge_vec[!is_same_clus]
-
-  imb_within <- -sum(edges_within[edges_within < 0])
-  imb_between <- sum(edges_between[edges_between > 0])
-
-  alpha * imb_within + (1 - alpha) * imb_between
-}
-
-rclus <- function(n, k) {
-  sample(seq_len(k), n, replace = TRUE)
-}
-
-step_grid <- function(part_vec, k) {
-  labels <- seq_len(k)
-
-  res <- lapply(seq_along(part_vec), function(ind) {
-    target_clusters <- setdiff(labels, part_vec[ind])
-
-    lapply(target_clusters, function(new_clus) {
-      part_vec[ind] <- new_clus
-
-      part_vec
-    })
-  })
-
-  Reduce(c, res)
-}
-
-partition_try <- function(edge_vec, init_part_vec, k = 2,
-                          max_iter = 1000, imb_tol = 0, alpha = 0.5) {
-  best_imb <- imb(edge_vec, init_part_vec, alpha)
-  cur_imb <- best_imb
-  best_part_vec <- init_part_vec
-  cur_part_vec <- best_part_vec
-
-  for (i in seq_len(max_iter)) {
-    part_vec_grid <- step_grid(cur_part_vec, k)
-    for (j in seq_along(part_vec_grid)) {
-      grid_imb <- imb(edge_vec, part_vec_grid[[j]], alpha)
-      if (grid_imb < best_imb) {
-        best_imb <- grid_imb
-        best_part_vec <- part_vec_grid[[j]]
-      }
-      if (best_imb <= imb_tol) {
-        break
-      }
-    }
-    if ((best_imb <= imb_tol) || (cur_imb <= best_imb)) {
-      break
-    } else {
-      cur_imb <- best_imb
-      cur_part_vec <- best_part_vec
-    }
-  }
-
-  list(imb = best_imb, part_vec = best_part_vec)
-}
-
-partition <- function(adj_mat, k = 2, max_iter = 1000, n_try = 100,
-                      imb_tol = 0, alpha = 0.5) {
-  n_nodes <- nrow(adj_mat)
-  edge_vec <- as_edge_vec(adj_mat)
-
-  best_imb <- Inf
-  best_part_vec <- rep(NA_integer_, n_nodes)
-
-  for (try_ind in seq_len(n_try)) {
-    init_part_vec <- rclus(n_nodes, k)
-    try_res <- partition_try(edge_vec, init_part_vec, k,
-                             max_iter, imb_tol, alpha)
-
-    if (try_res$imb < best_imb) {
-      best_imb <- try_res$imb
-      best_part_vec <- try_res$part_vec
-    }
-    if (best_imb <= imb_tol) {
-      break
-    }
-  }
-  names(best_part_vec) <- rownames(adj_mat)
-
-  list(imb = best_imb, part_vec = best_part_vec)
-}
-
-
-# Do partition ------------------------------------------------------------
-# WARNING: Takes pretty long time to run. Change `max_iter` and/or `n_try`
-# to smaller values for faster (but less precise) computation
-ttp_data <- ttp %>%
-  morph(to_components) %>%
-  crystallise() %>%
-  mutate(
-    # Compute partition data
-    adj_mat = map(graph, igraph::as_adj, attr = "sign"),
-    partition_data = map(adj_mat, partition, max_iter = 100, n_try = 5000),
-    best_imb = map_dbl(partition_data, "imb"),
-    partition = map(partition_data, "part_vec"),
-    # Merge best partition to graphs
-    graph = map2(
-      graph, partition,
-      ~ activate(.x, nodes) %>%
-        left_join(y = enframe(.y, value = "partition") %>%
-                    mutate(partition = as.character(partition)),
-                  by = "name")
-    )
-  )
-
-# saveRDS(ttp_data, file.path("analysis", "ttp_data.rds"))
-
-ttp_updated <- reduce(ttp_data$graph, bind_graphs)
-
-ttp_updated %>%
-  ggraph(layout = "nicely") +
-    geom_edge_link(
-      aes(colour = type),
-      arrow = arrow(length = unit(1.5, "mm")),
-      start_cap = circle(3, "mm"),
-      end_cap = circle(3, "mm")
-    ) +
-    geom_node_text(aes(label = chapter, colour = partition), size = 5) +
-    scale_edge_colour_manual(values = c(ally = "#22B022",
-                                        opponent = "#A4AAF6")) +
-    scale_colour_manual(values = c("blue", "red")) +
-    theme_graph() +
-    labs(
-      title = '"Tao Te Programming" alliance graph',
-      subtitle = "Nodes represent chapter numbers, edges - connections",
-      caption = "@echasnovski"
-    )
+# Confirm edge type disbalance
+ttp_edges %>% count(type)
 
 
 # Find central advice -----------------------------------------------------
@@ -194,7 +51,7 @@ edges_peace <- ttp_edges %>%
 
 tbl_graph(
   nodes = ttp_chapters, edges = edges_peace, directed = TRUE
-  ) %>%
+) %>%
   activate(nodes) %>%
   mutate(centr = centrality_pagerank()) %>%
   as_tibble() %>%
